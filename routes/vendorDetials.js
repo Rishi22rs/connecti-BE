@@ -1,9 +1,13 @@
 const express = require("express");
 
 const router = express();
-const { addVendorDetails } = require("../controllers/vendorDetails");
+const {
+  addVendorDetails,
+  editVendorDetails,
+} = require("../controllers/vendorDetails");
 const { verifyToken } = require("../middlewares/auth");
 
-router.post("/addVendorDetails", verifyToken, addVendorDetails);
+router.post("/addVendorDetails", addVendorDetails);
+router.post("/editVendorDetails", editVendorDetails);
 
 module.exports = router;
