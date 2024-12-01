@@ -3,11 +3,12 @@ const db = require("../db");
 const { generateToken } = require("../middlewares/auth");
 const { getId } = require("../utils/getId");
 
-const isNewUser = (phoneNumber) => {
+const isNewUser = (phoneNumber, isVendor) => {
   return new Promise((resolve, reject) => {
-    const userDetailsExistsSql = `SELECT 1 FROM user_details WHERE phone_number=?`;
+    const userDetailsExistsSql = `SELECT 1 FROM ${
+      Number(isVendor) ? "vendor_details" : "user_details"
+    } WHERE phone_number=?`;
     db.query(userDetailsExistsSql, [phoneNumber], (error, result) => {
-      console.log(result.length);
       if (error) reject({ message: "Somthing went wrong" });
       else resolve(!result?.length);
     });
@@ -26,11 +27,11 @@ exports.verifyOtp = (req, res) => {
           .status(500)
           .json({ message: "Error while creating OTP", error });
       if (result?.length) {
-        const newUser = await isNewUser(phoneNumber);
+        const newUser = await isNewUser(phoneNumber, isVendor);
         const newUserUid = getId();
         if (newUser) {
           const insertPhoneNumberSql = `INSERT INTO ${
-            isVendor ? "vendor_details" : "user_details"
+            Number(isVendor) ? "vendor_details" : "user_details"
           } (uid,phone_number) VALUES (?,?)`;
           db.query(
             insertPhoneNumberSql,
@@ -79,7 +80,6 @@ exports.createOtp = (req, res) => {
   const id = getId();
   const otp = Math.floor(Math.random() * (9999 - 1000 + 1)) + 1000;
   const { phone_number: phoneNumber } = req.body;
-  console.log(id, phoneNumber, otp);
   const addingPhoneNumberAndOtpSql = `INSERT INTO user_mobile_mapping (uid, phone_number,otp)
   VALUES (?,?,?) ON DUPLICATE KEY UPDATE otp=?`;
   // axios
