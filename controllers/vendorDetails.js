@@ -3,6 +3,7 @@ const { getId } = require("../utils/getId");
 
 exports.getVendorDetails = (req, res) => {
   const { id } = req.user;
+  console.log(req.user);
   const getVendorDetailsSql = `SELECT * FROM vendor_details WHERE uid=?`;
   db.query(getVendorDetailsSql, [id], (error, result) => {
     console.log({ error, result });

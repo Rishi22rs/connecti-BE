@@ -5,6 +5,7 @@ const generateToken = (user) => {
   const payload = {
     id: user.id,
     phoneNumber: user.phoneNumber,
+    isVendor: user.isVendor,
   };
 
   const options = {

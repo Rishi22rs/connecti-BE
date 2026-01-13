@@ -53,23 +53,43 @@ exports.verifyOtp = (req, res) => {
                   res.json({
                     message: "Phone number verified",
                     newUser,
-                    token: generateToken({ id: newUserUid, phoneNumber }),
+                    isVendor: Number(isVendor),
+                    token: generateToken({
+                      id: newUserUid,
+                      phoneNumber,
+                      isVendor: Number(isVendor) ? true : false,
+                    }),
                   });
                 }
               );
             }
           );
         } else {
-          const deleteOtpSql = `DELETE FROM user_mobile_mapping WHERE phone_number = ?`;
-          db.query(deleteOtpSql, [phoneNumber], (deleteError, deleteResult) => {
-            if (deleteError)
-              return res.status(500).json({ message: "Something went wrong" });
-            res.json({
-              message: "Phone number verified",
-              newUser,
-              token: generateToken({ id: newUserUid, phoneNumber }),
-            });
-          });
+          const deleteOtpSql = `START TRANSACTION;DELETE FROM user_mobile_mapping WHERE phone_number = ?;SELECT uid FROM ${
+            Number(isVendor) ? "vendor_details" : "user_details"
+          } WHERE phone_number=?;COMMIT;`;
+          db.query(
+            deleteOtpSql,
+            [phoneNumber, phoneNumber],
+            (deleteError, deleteResult) => {
+              if (deleteError) {
+                console.log(deleteError);
+                return res
+                  .status(500)
+                  .json({ message: "Something went wrong" });
+              }
+              res.json({
+                message: "Phone number verified",
+                newUser,
+                isVendor: Number(isVendor),
+                token: generateToken({
+                  id: deleteResult?.[2]?.[0]?.uid,
+                  phoneNumber,
+                  isVendor: Number(isVendor) ? true : false,
+                }),
+              });
+            }
+          );
         }
       } else res.status(401).json({ message: "Invalid OTP" });
     }
@@ -82,21 +102,29 @@ exports.createOtp = (req, res) => {
   const { phone_number: phoneNumber } = req.body;
   const addingPhoneNumberAndOtpSql = `INSERT INTO user_mobile_mapping (uid, phone_number,otp)
   VALUES (?,?,?) ON DUPLICATE KEY UPDATE otp=?`;
-  // axios
-  //   .get(
-  //     `https://www.fast2sms.com/dev/bulkV2?authorization=${process.env.FAST2SMS_API_KET}&variables_values=${otp}&route=otp&numbers=${phoneNumber}`
-  //   )
-  //   .then(() => {
-  db.query(
-    addingPhoneNumberAndOtpSql,
-    [id, Number(phoneNumber), otp, otp],
-    (error, result) => {
-      if (error)
-        return res
-          .status(500)
-          .json({ message: "Error while creating OTP", error });
-      res.json({ message: "OTP created" });
-    }
-  );
-  // });
+  axios
+    .get(
+      `https://www.fast2sms.com/dev/bulkV2?authorization=${process.env.FAST2SMS_API_KET}&variables_values=${otp}&route=otp&numbers=${phoneNumber}`
+    )
+    .then(() => {
+      db.query(
+        addingPhoneNumberAndOtpSql,
+        [id, Number(phoneNumber), otp, otp],
+        (error, result) => {
+          if (error)
+            return res
+              .status(500)
+              .json({ message: "Error while creating OTP", error });
+          res.json({ message: "OTP created" });
+        }
+      );
+    });
+};
+
+exports.currentStep = (req, res) => {
+  const { isVendor } = req.user;
+  console.log(req.user);
+  let screenRoute = isVendor ? "VENDOR_HOME_SCREEN" : "HOME";
+  let screenName = isVendor ? "VENDOR_ADMIN_PANEL_ROUTE" : "HOME_ROUTE";
+  res.json({ message: "verified", route: screenRoute, routeName: screenName });
 };
